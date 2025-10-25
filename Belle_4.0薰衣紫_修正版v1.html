@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Belle的每日記帳</title>
+<style>
+:root{
+  --bg:#cec6f3;
+  --card:hsl(271, 69%, 90%);
+  --text:#7e61e7;
+  --muted:#7842f8;
+  --primary:lch(18.29% 33.41 308.02 / 0.827);
+  --border:#9e6dfa;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue","PingFang TC","Noto Sans TC",Arial,sans-serif;color:var(--text)}
+.container{max-width:980px;margin:24px auto;padding:0 16px}
+h1{font-size:28px;margin:8px 0 16px}
+.tabs{display:flex;gap:8px;margin:8px 0 16px}
+.tab{padding:10px 16px;border-radius:24px;background:#eaf2ff;color:#6b27e9;border:1px solid #dbe7ff;cursor:pointer}
+.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 4px rgba(15,33,55,.04)}
+.section-title{font-weight:800;font-size:20px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+input,select,button,textarea{font-size:16px}
+.input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:#f9fbff}
+#monthInput{cursor:pointer !important; user-select:none; -webkit-user-select:none;}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1 1 240px}
+.btn{background:var(--primary);color:#fff;border:none;border-radius:12px;padding:10px 16px;cursor:pointer}
+.btn.secondary{background:#b99bf0;color:#7d42eb}
+.inline{display:flex;gap:8px;align-items:center}
+.badge{display:inline-block;border:1px dashed #5b389b;border-radius:12px;padding:14px 18px;min-width:140px;text-align:center}
+.badge .label{font-size:14px;color:var(--muted)}
+.badge .num{font-size:28px;font-weight:800;margin-top:4px}
+.table{width:100%;border-collapse:separate;border-spacing:0 10px}
+.table th,.table td{background:#fff;border:1px solid var(--border);padding:10px 12px}
+.table th:first-child,.table td:first-child{border-top-left-radius:12px;border-bottom-left-radius:12px}
+.table th:last-child,.table td:last-child{border-top-right-radius:12px;border-bottom-right-radius:12px}
+tfoot td{font-weight:800}
+.small{font-size:13px;color:var(--muted)}
+.log{padding:8px 12px;background:#f3f8ff;border-radius:10px;border:1px dashed #edb0f5}
+.modal{position:fixed;inset:0;background:rgba(130, 94, 214, 0.35);display:none;align-items:center;justify-content:center;z-index:50}
+.modal .panel{background:#fff;border-radius:16px;padding:16px;min-width:320px;max-width:420px}
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.month-btn{padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+.month-btn.active{background:#eaeaff;border-color:#1d015e;color:#9e4ae2;font-weight:700}
+.modal .top{display:flex;align-items:center;justify-content:space-between}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;display:none;z-index:60}
+.hidden{display:none}
+.sticky-save{position:fixed;right:18px;bottom:18px}
+@media (max-width:640px){ .badge{min-width:120px} }
+
+body:not(.showLogs):not(.showHidden) #home { display: block !important; }
+body:not(.showLogs):not(.showHidden) #logs { display: none !important; }
+body:not(.showLogs):not(.showHidden) #hidden { display: none !important; }
+
+body.showLogs:not(.showHidden) #home { display: none !important; }
+body.showLogs:not(.showHidden) #logs { display: block !important; }
+body.showLogs:not(.showHidden) #hidden { display: none !important; }
+
+body.showHidden #home { display: none !important; }
+body.showHidden #logs { display: none !important; }
+body.showHidden #hidden { display: block !important; }
+
+#logBox { display: none !important; }
+
+body:not(.showHidden) #leftFixedTable,
+body:not(.showHidden) #rightTable,
+body:not(.showHidden) #kpiBlock,
+body:not(.showHidden) #exportFab,
+body:not(.showHidden) #exportPanel,
+body:not(.showHidden) #exportPanelMask { display: none !important; }
+#exportPanel:not(.show){ display:none !important; }
+#exportPanelMask:not(.show), #exportMask:not(.show){ display:none !important; }
+.totalLine{ display:none !important; }
+.totalRow .num{float:right;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Belle的每日記帳</h1>
+    <div class="tabs">
+      <div id="tab-home" class="tab active">首頁</div>
+      <div id="tab-logs" class="tab">流水帳</div>
+      <div id="tab-hidden" class="tab">彙總表</div>
+    </div>
+
+    <div id="home">
+      <div class="card">
+        <div class="section-title">月份 / 天數</div>
+        <div class="row">
+          <div class="col">
+            <label class="small">月份（點一下可選擇）</label>
+            <input id="monthInput" class="input" placeholder="YYYY-MM" readonly>
+          </div>
+          <div class="col">
+            <label class="small">天數</label>
+            <input id="daysInput" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="30">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">新增一筆記帳</div>
+        <div class="row">
+          <div class="col">
+            <label class="small">分類（其他項目）</label>
+            <select id="catSelect" class="input">
+              <option value="">－ 請選擇 －</option>
+              <option value="生活用品">生活用品</option>
+              <option value="伙食費">伙食費</option>
+              <option value="彩妝保養">彩妝保養</option>
+              <option value="約會基金">約會基金</option>
+              <option value="其他支出">其他支出</option>
+              <option value="社交">社交</option>
+              <option value="儲蓄">儲蓄</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="small">金額</label>
+            <input id="amountInput" class="input" inputmode="decimal" placeholder="輸入金額" value="0">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label class="small">品項 / 備註</label>
+            <input id="noteInput" class="input" placeholder="例：超市 / 拉麵 / 化妝水…" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="addBtn" class="btn">＋ 記錄</button>
+          <button id="restoreBtn" class="btn secondary" title="還原上筆">復原上筆</button>
+        </div>
+        <div id="logBox" class="log" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div id="logs" class="hidden">
+      <div class="card">
+        <div class="section-title">流水帳</div>
+        <div id="logsDisplay" class="log" style="min-height:200px"></div>
+      </div>
+    </div>
+
+    <div id="hidden" class="hidden">
+      <div class="card">
+        <div class="section-title">主要項目</div>
+        <table class="table" id="leftFixedTable">
+  <thead><tr><th style="width:40%">項目</th><th>金額</th></tr></thead>
+  
+  <!-- 固定支出 -->
+  <tbody id="fixedOutBody">
+    <tr><th colspan="2" style="text-align:left;background:#f7fbff">固定支出</th></tr>
+    <tr><td>租金</td><td><input class="input moneyZ" value="0" data-group="fixedOut"></td></tr>
+    <tr><td>保險費（Me&Mom）</td><td><input class="input moneyZ" value="0" data-group="fixedOut"></td></tr>
+    <tr><td>電信費</td><td><input class="input moneyZ" value="0" data-group="fixedOut"></td></tr>
+    <tr><td>電（1度5元）</td><td><input class="input moneyZ" value="0" data-group="fixedOut"></td></tr>
+    <tr><td>信用卡</td><td><input class="input moneyZ" value="0" data-group="fixedOut"></td></tr>
+    <tr id="fixedOutCustomAnchor">
+      <td colspan="2" style="padding:0;border:none">
+        <table style="width:100%;border-collapse:separate;border-spacing:0 10px">
+          <tbody id="fixedOutCustomRows"></tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="background:#f9fbff;border:1px dashed #cfe0ff;border-radius:10px;padding:10px">
+        <button id="fixedOutAdd" class="btn secondary" type="button"
+                style="padding:6px 10px;border-radius:8px;font-size:13px">＋ 新增欄位</button>
+        <span class="small" style="margin-left:8px">可自訂名稱與金額</span>
+      </td>
+    </tr>
+    <tr class="totalRow"><td colspan="2"><b>固定支出 Total</b><span style="float:right" id="fixedOutTotal">0</span></td></tr>
+  </tbody>
+  
+  <!-- 固定收入 -->
+  <tbody id="fixedInBody">
+    <tr><th colspan="2" style="text-align:left;background:#f7fbff">固定收入</th></tr>
+    <tr><td>JET 薪資</td><td><input class="input moneyZ" value="0" data-group="fixedIn"></td></tr>
+    <tr><td>JET 獎金</td><td><input class="input moneyZ" value="0" data-group="fixedIn"></td></tr>
+    <tr><td>SK 薪資</td><td><input class="input moneyZ" value="0" data-group="fixedIn"></td></tr>
+    <tr id="fixedInCustomAnchor">
+      <td colspan="2" style="padding:0;border:none">
+        <table style="width:100%;border-collapse:separate;border-spacing:0 10px">
+          <tbody id="fixedInCustomRows"></tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="background:#f9fbff;border:1px dashed #cfe0ff;border-radius:10px;padding:10px">
+        <button id="fixedInAdd" class="btn secondary" type="button"
+                style="padding:6px 10px;border-radius:8px;font-size:13px">＋ 新增欄位</button>
+        <span class="small" style="margin-left:8px">可自訂名稱與金額</span>
+      </td>
+    </tr>
+    <tr class="totalRow"><td colspan="2"><b>固定收入 Total</b><span style="float:right" id="fixedInTotal">0</span></td></tr>
+  </tbody>
+  
+  <!-- 儲蓄 -->
+  <tbody id="savingBody">
+    <tr><th colspan="2" style="text-align:left;background:#f7fbff">儲蓄</th></tr>
+    <tr><td>存台銀（學費）</td><td><input class="input moneyZ" value="0" data-group="saving"></td></tr>
+    <tr><td>美金換匯</td><td><input class="input moneyZ" value="0" data-group="saving"></td></tr>
+    <tr><td>存玉山</td><td><input class="input moneyZ" value="0" data-group="saving"></td></tr>
+    <tr><td>旅遊基金</td><td><input class="input moneyZ" value="0" data-group="saving"></td></tr>
+    <tr id="savingCustomAnchor">
+      <td colspan="2" style="padding:0;border:none">
+        <table style="width:100%;border-collapse:separate;border-spacing:0 10px">
+          <tbody id="savingCustomRows"></tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="background:#f9fbff;border:1px dashed #cfe0ff;border-radius:10px;padding:10px">
+        <button id="savingAdd" class="btn secondary" type="button"
+                style="padding:6px 10px;border-radius:8px;font-size:13px">＋ 新增欄位</button>
+        <span class="small" style="margin-left:8px">可自訂名稱與金額</span>
+      </td>
+    </tr>
+    <tr class="totalRow"><td colspan="2"><b>儲蓄 Total</b><span style="float:right" id="savingTotal">0</span></td></tr>
+  </tbody>
+  
+  <!-- 額外收入 -->
+  <tbody id="extraInBody">
+    <tr><th colspan="2" style="text-align:left;background:#f7fbff">額外收入</th></tr>
+    <tr><td>發票中獎</td><td><input class="input moneyZ" value="0" data-group="extraIn"></td></tr>
+    <tr id="extraInCustomAnchor">
+      <td colspan="2" style="padding:0;border:none">
+        <table style="width:100%;border-collapse:separate;border-spacing:0 10px">
+          <tbody id="extraInCustomRows"></tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="background:#f9fbff;border:1px dashed #cfe0ff;border-radius:10px;padding:10px">
+        <button id="extraInAdd" class="btn secondary" type="button"
+                style="padding:6px 10px;border-radius:8px;font-size:13px">＋ 新增欄位</button>
+        <span class="small" style="margin-left:8px">可自訂名稱與金額</span>
+      </td>
+    </tr>
+    <tr class="totalRow"><td colspan="2"><b>額外收入 Total</b><span style="float:right" id="extraInTotal">0</span></td></tr>
+  </tbody>
+  
+  <!-- 額外支出 -->
+  <tbody id="extraOutBody">
+    <tr><th colspan="2" style="text-align:left;background:#f7fbff">額外支出</th></tr>
+    <tr><td>搬家費用</td><td><input class="input moneyZ" value="0" data-group="extraOut"></td></tr>
+    <tr id="extraOutCustomAnchor">
+      <td colspan="2" style="padding:0;border:none">
+        <table style="width:100%;border-collapse:separate;border-spacing:0 10px">
+          <tbody id="extraOutCustomRows"></tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="background:#f9fbff;border:1px dashed #cfe0ff;border-radius:10px;padding:10px">
+        <button id="extraOutAdd" class="btn secondary" type="button"
+                style="padding:6px 10px;border-radius:8px;font-size:13px">＋ 新增欄位</button>
+        <span class="small" style="margin-left:8px">可自訂名稱與金額</span>
+      </td>
+    </tr>
+    <tr class="totalRow">
+      <td colspan="2"><b>額外支出 Total</b> <span class="num" id="extraOutTotal">0</span></td>
+    </tr>
+  </tbody>
+
+<script>
+(function(){
+  function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+  function num2(v){try{return (typeof num==='function')?num(v):parseFloat((v||'').replace(/[^0-9.+-]/g,''))||0;}catch(e){return 0;}}
+  function key(){try{return 'book-'+(keyForMonth?keyForMonth():document.getElementById('monthInput')?.value||new Date().toISOString().slice(0,7));}catch(e){return 'book-'+new Date().toISOString().slice(0,7);}}
+  function r(){try{const s=localStorage.getItem(key());return s?JSON.parse(s):{};}catch(_){return {};}}
+  function w(o){try{localStorage.setItem(key(),JSON.stringify(o||{}));}catch(_){}}
+
+  // 通用的自定義欄位新增函式
+  function addCustomRow(group, name='', amount=0){
+    const rowsId = group + 'CustomRows';
+    const rows = document.getElementById(rowsId);
+    if(!rows) return;
+    
+    const tr = document.createElement('tr');
+    tr.className = group + 'Custom';
+    tr.innerHTML =
+      '<td style="width:40%"><input class="input customName" data-group="'+group+'" placeholder="自訂名稱" value="'+esc(name)+'"></td>'+
+      '<td><div style="display:flex;gap:8px;align-items:center">'+
+        '<input class="input moneyZ" value="'+(amount||0)+'" data-group="'+group+'" inputmode="decimal">'+
+        '<button type="button" class="btn secondary" style="padding:6px 10px;border-radius:8px;font-size:13px">－</button>'+
+      '</div></td>';
+    rows.appendChild(tr);
+    
+    tr.querySelector('button').addEventListener('click',()=>{
+      tr.remove(); 
+      try{computeTotals&&computeTotals();}catch(e){}
+      saveNow();
+    });
+    
+    const inp=tr.querySelector('input.moneyZ');
+    if(inp){
+      inp.addEventListener('focus',()=>{ if(inp.value==='0') inp.value=''; });
+      inp.addEventListener('blur', ()=>{ if(inp.value==='')  inp.value='0'; });
+    }
+    
+    tr.addEventListener('input',e=>{
+      if(e.target && (e.target.classList.contains('moneyZ')||e.target.classList.contains('customName'))) saveNow();
+    },true);
+  }
+
+  // 收集各群組的自定義資料
+  function collectCustom(group){
+    const rowsId = group + 'CustomRows';
+    const rows = document.querySelectorAll('#'+rowsId+' tr.'+group+'Custom');
+    return Array.from(rows).map(tr=>{
+      const name=tr.querySelector('.customName')?.value||'';
+      const v   =tr.querySelector('.moneyZ')?.value||'0';
+      const n=num2(v);
+      return (name.trim()!==''||n>0)?{name,amount:n}:null;
+    }).filter(Boolean);
+  }
+
+  // 渲染各群組的自定義欄位
+  function renderCustom(group, list){
+    const rowsId = group + 'CustomRows';
+    const cont = document.getElementById(rowsId);
+    if(!cont) return;
+    cont.innerHTML='';
+    (list||[]).forEach(it=>addCustomRow(group, it.name||'', it.amount||0));
+  }
+
+  function saveNow(){
+    const obj=r();
+    // 儲存所有群組的自定義資料
+    ['fixedOut', 'fixedIn', 'saving', 'extraIn', 'extraOut'].forEach(group=>{
+      obj[group+'Custom'] = collectCustom(group);
+    });
+    w(obj);
+  }
+
+  // 綁定新增按鈕
+  ['fixedOut', 'fixedIn', 'saving', 'extraIn', 'extraOut'].forEach(group=>{
+    const btn = document.getElementById(group+'Add');
+    if(btn){
+      btn.addEventListener('click',()=>{ 
+        addCustomRow(group); 
+        try{computeTotals&&computeTotals();}catch(e){}
+        saveNow(); 
+      });
+    }
+  });
+
+  // 綁定輸入事件
+  document.addEventListener('input',e=>{
+    const t=e.target;
+    if(t?.matches && (t.matches('input.moneyZ')||t.matches('.customName'))) saveNow();
+  },true);
+  
+  document.addEventListener('change',e=>{
+    const t=e.target;
+    if(t?.matches && (t.matches('input.moneyZ')||t.matches('.customName'))) saveNow();
+  },true);
+
+  window.addEventListener('pagehide',saveNow,{capture:true});
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); },{capture:true});
+  window.addEventListener('beforeunload',saveNow,{capture:true});
+
+  // 覆寫 lsSet
+  if (typeof lsSet==='function'){
+    const _lsSet=lsSet;
+    window.lsSet=function(k,v){
+      try{ 
+        if(typeof k==='string'&&k.indexOf('book-')===0&&v&&typeof v==='object'){ 
+          ['fixedOut', 'fixedIn', 'saving', 'extraIn', 'extraOut'].forEach(group=>{
+            v[group+'Custom'] = collectCustom(group);
+          });
+        } 
+      }catch(_){}
+      try{ return _lsSet.apply(this,arguments); }catch(_){}
+    };
+  }
+
+  // 覆寫 Storage.prototype.setItem
+  (function(){
+    const _set = Storage.prototype.setItem;
+    Storage.prototype.setItem=function(k,v){
+      try{
+        if(typeof k==='string'&&k.indexOf('book-')===0){
+          let base={}; 
+          try{ base=JSON.parse(v);}catch(_){base={};}
+          ['fixedOut', 'fixedIn', 'saving', 'extraIn', 'extraOut'].forEach(group=>{
+            base[group+'Custom'] = collectCustom(group);
+          });
+          arguments[1]=JSON.stringify(base);
+        }
+      }catch(_){}
+      return _set.apply(this,arguments);
+    };
+  })();
+
+  // 還原資料
+  function restore(){
+    const d=r();
+    ['fixedOut', 'fixedIn', 'saving', 'extraIn', 'extraOut'].forEach(group=>{
+      renderCustom(group, d[group+'Custom']||[]);
+    });
+    try{computeTotals&&computeTotals();}catch(e){}
+  }
+  
+  if(document.readyState==='loading'){ 
+    document.addEventListener('DOMContentLoaded',()=>{
+      restore();
+      setTimeout(restore,50);
+      setTimeout(restore,300);
+    }); 
+  } else { 
+    restore(); 
+    setTimeout(restore,50); 
+    setTimeout(restore,300); 
+  }
+  
+  document.getElementById('tab-hidden')?.addEventListener('click',()=>setTimeout(restore,0));
+})();
+</script>
+      </table>
+      </div>
+
+      <div class="card">
+        <div class="section-title">其他項目</div>
+        <table class="table" id="rightTable">
+          <thead>
+            <tr>
+              <th>項目</th><th style="width:120px">%</th><th>攤提金額</th><th>每日預算</th><th>已使用</th><th>結餘</th>
+            </tr>
+          </thead>
+          <tbody id="rightBody">
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="small">攤提總和</td>
+              <td id="sumPct">100.0%</td>
+              <td id="sumRight">0</td>
+              <td id="sumDaily">0</td>
+              <td id="sumUsed">0</td>
+              <td id="sumRemain">0</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="inline sticky-save">
+          <button id="saveBtn" class="btn">儲存</button>
+        </div>
+      </div>
+
+      <div class="card" id="kpiBlock">
+        <div class="section-title">合計</div>
+        <div class="row">
+          <div class="badge"><div class="label">月結餘</div><div id="kpi_balance" class="num">0</div></div>
+          <div class="badge"><div class="label">攤提總和</div><div id="kpi_right" class="num">0</div></div>
+          <div class="badge"><div class="label">已使用總和</div><div id="kpi_used" class="num">0</div></div>
+          <div class="badge"><div class="label">結餘總和</div><div id="kpi_remain" class="num">0</div></div>
+        </div>
+        <div class="row">
+          <div class="badge"><div class="label">總收入</div><div id="kpi_income" class="num">0</div></div>
+          <div class="badge"><div class="label">總固定支出</div><div id="kpi_fixedout" class="num">0</div></div>
+          <div class="badge"><div class="label">總儲蓄</div><div id="kpi_saving" class="num">0</div></div>
+          <div class="badge"><div class="label">可支配金</div><div id="kpi_free" class="num">0</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="monthModal" class="modal">
+    <div class="panel">
+      <div class="top">
+        <button id="prevYear" class="btn secondary">«</button>
+        <div id="yearTitle" style="font-weight:800">2025 年</div>
+        <button id="nextYear" class="btn secondary">»</button>
+      </div>
+      <div class="month-grid" id="monthGrid"></div>
+      <div class="inline" style="justify-content:flex-end;margin-top:10px">
+        <button id="cancelMonth" class="btn secondary">取消</button>
+        <button id="okMonth" class="btn">確定</button>
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+<script>
+const CATS = ["生活用品","伙食費","彩妝保養","約會基金","其他支出","社交","儲蓄"];
+
+function renderRightRows(){
+  const tb = document.getElementById('rightBody');
+  tb.innerHTML = '';
+  CATS.forEach(cat=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${cat}</td>
+      <td><input class="input pct" value="0" data-cat="${cat}" inputmode="decimal"></td>
+      <td class="rightAmt" data-cat="${cat}">0</td>
+      <td class="dailyAmt" data-cat="${cat}">0</td>
+      <td><input class="input used" value="0" data-cat="${cat}" inputmode="decimal"></td>
+      <td class="remainAmt" data-cat="${cat}">0</td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+renderRightRows();
+
+function fmt(n){ return Number(n||0).toLocaleString('zh-TW'); }
+function num(v){ const n = parseFloat(v); return isNaN(n)?0:n; }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display='block';
+  setTimeout(()=>t.style.display='none',1500);
+}
+function keyForMonth(){ return (document.getElementById('monthInput').value || new Date().toISOString().slice(0,7)); }
+function lsGet(k,def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch(e){ return def } }
+function lsSet(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+const monthInput = document.getElementById('monthInput');
+const daysInput  = document.getElementById('daysInput');
+(function initMonth(){
+  const now = new Date();
+  const ym = now.toISOString().slice(0,7);
+  monthInput.value = ym;
+  daysInput.value = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+})();
+
+const modal = document.getElementById('monthModal');
+let pickYear = new Date().getFullYear();
+let pickMonth = new Date().getMonth()+1;
+function openMonthModal(){
+  pickYear = (monthInput.value? Number(monthInput.value.slice(0,4)) : new Date().getFullYear());
+  pickMonth = (monthInput.value? Number(monthInput.value.slice(5,7)) : (new Date().getMonth()+1));
+  document.getElementById('yearTitle').textContent = pickYear+' 年';
+  const grid = document.getElementById('monthGrid');
+  grid.innerHTML = '';
+  for(let m=1;m<=12;m++){
+    const btn = document.createElement('button');
+    btn.className='month-btn'+(m===pickMonth?' active':'');
+    btn.textContent = m+'月';
+    btn.onclick = ()=>{
+      pickMonth = m;
+      [...grid.children].forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+    grid.appendChild(btn);
+  }
+  modal.style.display='flex';
+}
+
+monthInput.addEventListener('click', function(e){
+  e.preventDefault();
+  openMonthModal();
+}, true);
+
+monthInput.addEventListener('touchstart', function(e){
+  e.preventDefault();
+  openMonthModal();
+}, {passive: false});
+
+monthInput.addEventListener('focus', function(e){
+  e.preventDefault();
+  this.blur();
+  openMonthModal();
+});
+
+document.getElementById('prevYear').onclick=()=>{ pickYear--; document.getElementById('yearTitle').textContent = pickYear+' 年'; };
+document.getElementById('nextYear').onclick=()=>{ pickYear++; document.getElementById('yearTitle').textContent = pickYear+' 年'; };
+document.getElementById('cancelMonth').onclick=()=> modal.style.display='none';
+document.getElementById('okMonth').onclick=()=>{
+  const oldMonth = monthInput.value;
+  const ym = pickYear+'-'+String(pickMonth).padStart(2,'0');
+  monthInput.value = ym;
+  const days = new Date(pickYear, pickMonth, 0).getDate();
+  daysInput.value = days;
+  modal.style.display='none';
+  if(oldMonth !== ym){
+    loadMonth(true);
+  }
+};
+
+function attachZeroClear(selector){
+  document.querySelectorAll(selector).forEach(inp=>{
+    inp.addEventListener('focus',()=>{ if(inp.value==='0') inp.value=''; });
+    inp.addEventListener('blur', ()=>{ if(inp.value==='') inp.value='0'; });
+  });
+}
+function refreshZeroClear(){
+  attachZeroClear('input.moneyZ');
+  attachZeroClear('input.pct');
+  attachZeroClear('input.used');
+  attachZeroClear('#amountInput');
+}
+refreshZeroClear();
+
+function computeTotals(){
+  let fixedOut=0,fixedIn=0,saving=0,extraIn=0,extraOut=0;
+  document.querySelectorAll('input.moneyZ[data-group="fixedOut"]').forEach(i=>fixedOut += num(i.value));
+  document.querySelectorAll('input.moneyZ[data-group="fixedIn"]').forEach(i=>fixedIn += num(i.value));
+  document.querySelectorAll('input.moneyZ[data-group="saving"]').forEach(i=>saving += num(i.value));
+  document.querySelectorAll('input.moneyZ[data-group="extraIn"]').forEach(i=>extraIn += num(i.value));
+  document.querySelectorAll('input.moneyZ[data-group="extraOut"]').forEach(i=>extraOut += num(i.value));
+  
+  document.getElementById('fixedOutTotal').textContent = fmt(fixedOut.toFixed(0));
+  document.getElementById('fixedInTotal').textContent = fmt(fixedIn.toFixed(0));
+  document.getElementById('savingTotal').textContent = fmt(saving.toFixed(0));
+  document.getElementById('extraInTotal').textContent = fmt(extraIn.toFixed(0));
+  document.getElementById('extraOutTotal').textContent = fmt(extraOut.toFixed(0));
+  
+  const totalIncome = fixedIn + extraIn;
+  const free = totalIncome - fixedOut - saving;
+
+  let sumPct=0,sumRight=0,sumDaily=0,sumUsed=0,sumRemain=0;
+  const days = Math.max(1, num(daysInput.value));
+  document.querySelectorAll('#rightBody tr').forEach(tr=>{
+    const cat = tr.querySelector('.pct').dataset.cat;
+    const pct = num(tr.querySelector('.pct').value);
+    const used = num(tr.querySelector('.used').value);
+    sumPct += pct;
+    const right = Math.max(0, free * pct / 100);
+    const daily = right / days;
+    const remain = right - used;
+    tr.querySelector('.rightAmt').textContent = fmt(right.toFixed(0));
+    tr.querySelector('.dailyAmt').textContent = fmt(daily.toFixed(2));
+    tr.querySelector('.remainAmt').textContent = fmt(remain.toFixed(0));
+    sumRight += right; sumDaily += daily; sumUsed += used; sumRemain += remain;
+  });
+
+  document.getElementById('sumPct').textContent = (sumPct.toFixed(1))+'%';
+  document.getElementById('sumRight').textContent = fmt(sumRight.toFixed(0));
+  document.getElementById('sumDaily').textContent = fmt(sumDaily.toFixed(2));
+  document.getElementById('sumUsed').textContent = fmt(sumUsed.toFixed(0));
+  document.getElementById('sumRemain').textContent = fmt(sumRemain.toFixed(0));
+
+  document.getElementById('kpi_income').textContent = fmt(totalIncome.toFixed(0));
+  document.getElementById('kpi_fixedout').textContent = fmt(fixedOut.toFixed(0));
+  document.getElementById('kpi_saving').textContent = fmt(saving.toFixed(0));
+  document.getElementById('kpi_free').textContent = fmt(free.toFixed(0));
+  document.getElementById('kpi_right').textContent = fmt(sumRight.toFixed(0));
+  document.getElementById('kpi_used').textContent = fmt(sumUsed.toFixed(0));
+  document.getElementById('kpi_remain').textContent = fmt(sumRemain.toFixed(0));
+  document.getElementById('kpi_balance').textContent = fmt((free - sumUsed).toFixed(0));
+}
+
+document.addEventListener('input', e=>{
+  if(e.target.matches('.pct,.used,.moneyZ,#daysInput')) computeTotals();
+});
+
+function updateLogsDisplay(){
+  const logsDisplay = document.getElementById('logsDisplay');
+  const key = 'book-'+keyForMonth();
+  const d = lsGet(key, null);
+  if(!d || !d.log || d.log.trim() === ''){
+    logsDisplay.innerHTML = '<div style="color:#999;text-align:center;padding:20px">目前沒有記帳記錄</div>';
+  } else {
+    logsDisplay.innerHTML = d.log;
+  }
+}
+
+const logBox = document.getElementById('logBox');
+let lastRecord = null;
+document.getElementById('addBtn').onclick = ()=>{
+  const cat = document.getElementById('catSelect').value;
+  const amt = num(document.getElementById('amountInput').value);
+  const note = document.getElementById('noteInput').value.trim();
+  if(!cat){ toast('請先選擇分類'); return; }
+  if(!(amt>0)){ toast('金額需為正數'); return; }
+  const usedInput = document.querySelector(`.used[data-cat="${cat}"]`);
+  if(!usedInput){ toast('找不到分類「'+cat+'」'); return; }
+  usedInput.value = (num(usedInput.value) + amt).toString();
+  computeTotals();
+  const t = new Date();
+  const stamp = t.getFullYear()+'/'+String(t.getMonth()+1).padStart(2,'0')+'/'+String(t.getDate()).padStart(2,'0')+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+  const line = `${stamp} ｜ ${cat} ｜ ${fmt(amt)}${note?(' ｜ '+note):''}`;
+  const prev = logBox.innerHTML;
+  logBox.innerHTML = `<div>• ${line}</div>` + prev;
+  lastRecord = {cat, amt, note};
+  
+  saveMonth();
+  updateLogsDisplay();
+  
+  document.getElementById('amountInput').value='0';
+  document.getElementById('noteInput').value='';
+};
+
+document.getElementById('restoreBtn').onclick=()=>{
+  if(!lastRecord){ toast('沒有可復原的紀錄'); return; }
+  const usedInput = document.querySelector(`.used[data-cat="${lastRecord.cat}"]`);
+  usedInput.value = Math.max(0, num(usedInput.value)-lastRecord.amt);
+  
+  const firstDiv = logBox.querySelector('div');
+  if(firstDiv) firstDiv.remove();
+  
+  computeTotals();
+  lastRecord=null;
+  toast('已復原上筆');
+  
+  saveMonth();
+  updateLogsDisplay();
+};
+
+function resetAllFields(){
+  const ym = keyForMonth();
+  const [y, m] = ym.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  daysInput.value = days;
+  
+  document.querySelectorAll('input.moneyZ').forEach(i => i.value = '0');
+  
+  CATS.forEach(c => {
+    const pctInput = document.querySelector(`.pct[data-cat="${c}"]`);
+    const usedInput = document.querySelector(`.used[data-cat="${c}"]`);
+    if(pctInput) pctInput.value = '0';
+    if(usedInput) usedInput.value = '0';
+  });
+  
+  logBox.innerHTML = '';
+  
+  ['fixedOut', 'fixedIn', 'saving', 'extraIn', 'extraOut'].forEach(group=>{
+    const customRows = document.getElementById(group+'CustomRows');
+    if(customRows) customRows.innerHTML = '';
+  });
+  
+  computeTotals();
+  refreshZeroClear();
+  updateLogsDisplay();
+}
+
+function saveMonth(){
+  const key = 'book-'+keyForMonth();
+  const data = {
+    days: num(daysInput.value),
+    fixedOut: [...document.querySelectorAll('input.moneyZ[data-group="fixedOut"]')].map(i=>num(i.value)),
+    fixedIn:  [...document.querySelectorAll('input.moneyZ[data-group="fixedIn"]')].map(i=>num(i.value)),
+    saving:   [...document.querySelectorAll('input.moneyZ[data-group="saving"]')].map(i=>num(i.value)),
+    extraIn:  [...document.querySelectorAll('input.moneyZ[data-group="extraIn"]')].map(i=>num(i.value)),
+    extraOut: [...document.querySelectorAll('input.moneyZ[data-group="extraOut"]')].map(i=>num(i.value)),
+    pct:  CATS.map(c=>num(document.querySelector(`.pct[data-cat="${c}"]`).value)),
+    used: CATS.map(c=>num(document.querySelector(`.used[data-cat="${c}"]`).value)),
+    log:  logBox.innerHTML
+  };
+  lsSet(key, data);
+  toast('已儲存');
+}
+
+function loadMonth(shouldResetIfEmpty){
+  const key = 'book-'+keyForMonth();
+  const d = lsGet(key, null);
+  
+  if(!d){ 
+    if(shouldResetIfEmpty){
+      resetAllFields();
+    } else {
+      computeTotals();
+      updateLogsDisplay();
+    }
+    return; 
+  }
+  
+  daysInput.value = d.days ?? daysInput.value;
+  
+  ['fixedOut','fixedIn','saving','extraIn','extraOut'].forEach(group=>{
+    const values = d[group]||[];
+    document.querySelectorAll(`input.moneyZ[data-group="${group}"]`).forEach((i,idx)=> {
+      i.value = (values[idx] !== undefined && values[idx] !== null) ? values[idx] : '0';
+    });
+  });
+  
+  CATS.forEach((c,idx)=>{
+    const p = (d.pct||[])[idx] ?? 0;
+    const u = (d.used||[])[idx] ?? 0;
+    document.querySelector(`.pct[data-cat="${c}"]`).value = p;
+    document.querySelector(`.used[data-cat="${c}"]`).value = u;
+  });
+  
+  logBox.innerHTML = d.log || '';
+  refreshZeroClear();
+  computeTotals();
+  updateLogsDisplay();
+}
+
+document.getElementById('saveBtn').onclick = saveMonth;
+
+const home = document.getElementById('home');
+const logs = document.getElementById('logs');
+const hidden = document.getElementById('hidden');
+
+document.getElementById('tab-home').onclick=()=>{
+  document.body.classList.remove('showLogs', 'showHidden');
+  document.getElementById('tab-home').classList.add('active');
+  document.getElementById('tab-logs').classList.remove('active');
+  document.getElementById('tab-hidden').classList.remove('active');
+};
+
+document.getElementById('tab-logs').onclick=()=>{
+  document.body.classList.add('showLogs');
+  document.body.classList.remove('showHidden');
+  document.getElementById('tab-home').classList.remove('active');
+  document.getElementById('tab-logs').classList.add('active');
+  document.getElementById('tab-hidden').classList.remove('active');
+  updateLogsDisplay();
+};
+
+document.getElementById('tab-hidden').onclick=()=>{
+  document.body.classList.add('showHidden');
+  document.body.classList.remove('showLogs');
+  document.getElementById('tab-home').classList.remove('active');
+  document.getElementById('tab-logs').classList.remove('active');
+  document.getElementById('tab-hidden').classList.add('active');
+  computeTotals();
+};
+
+loadMonth(false);
+computeTotals();
+updateLogsDisplay();
+</script>
+
+<script>
+(function(){
+  var LOADING = true;
+  var DIRTY = false;
+  var lastChangeAt = 0;
+
+  window.addEventListener('load', function(){ setTimeout(function(){ LOADING = false; }, 600); });
+
+  function debounce(fn, wait){
+    var t; return function(){ clearTimeout(t); var a=arguments,c=this; t=setTimeout(function(){ fn.apply(c,a); }, wait||400); };
+  }
+
+  function markDirty(){
+    if (LOADING) return;
+    DIRTY = true;
+    lastChangeAt = Date.now();
+  }
+
+  function silentSave(){
+    if (LOADING) return;
+    try{
+      var orig = window.toast;
+      if (typeof window.toast === 'function') window.toast = function(){};
+      if (typeof saveMonth === 'function') saveMonth();
+      if (orig) window.toast = orig;
+      DIRTY = false;
+    }catch(e){
+      console.warn('autosave failed:', e);
+    }
+  }
+  var debouncedSilentSave = debounce(silentSave, 450);
+
+  var sel = '.pct,.used,.moneyZ,#daysInput,#amountInput,#noteInput,#catSelect,.customName';
+  document.addEventListener('input', function(e){
+    if (!e.target || !e.target.matches) return;
+    if (e.target.matches(sel)) { markDirty(); debouncedSilentSave(); }
+  }, {passive:true});
+  document.addEventListener('change', function(e){
+    if (!e.target || !e.target.matches) return;
+    if (e.target.matches(sel)) { markDirty(); debouncedSilentSave(); }
+  }, {passive:true});
+
+  document.addEventListener('click', function(){ if (!LOADING) debouncedSilentSave(); }, true);
+  document.addEventListener('touchend', function(){ if (!LOADING) debouncedSilentSave(); }, true);
+
+  document.getElementById('okMonth')?.addEventListener('click', function(){ setTimeout(silentSave, 0); });
+
+  window.addEventListener('beforeunload', silentSave);
+  window.addEventListener('pagehide', silentSave);
+  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') silentSave(); });
+
+  try{
+    var candidates = Array.from(document.querySelectorAll('[id*="panel" i],[id*="modal" i],[class*="panel" i],[class*="modal" i]'));
+    if (candidates.length){
+      var mo = new MutationObserver(function(muts){
+        for (var m of muts){
+          var el = m.target;
+          var styleHidden = (el instanceof HTMLElement) && (getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden' || el.hidden);
+          var ariaHidden = (el.getAttribute && el.getAttribute('aria-hidden') === 'true');
+          var hasHiddenClass = (el.classList && (el.classList.contains('hidden') || el.classList.contains('is-hidden') || el.classList.contains('collapsed')));
+          if (styleHidden || ariaHidden || hasHiddenClass){
+            silentSave();
+          }
+        }
+      });
+      candidates.forEach(function(el){
+        mo.observe(el, {attributes:true, attributeFilter:['style','class','aria-hidden','hidden']});
+      });
+    }
+  }catch(err){ console.warn('observer init failed:', err); }
+
+  setInterval(function(){
+    if (DIRTY && Date.now() - lastChangeAt > 2500){
+      silentSave();
+    }
+  }, 1000);
+})();
+</script>
+
+<script>
+(function(){
+  var _origCompute = (typeof computeTotals === 'function') ? computeTotals : null;
+
+  function sumByGroup(group){
+    var list = document.querySelectorAll('input.moneyZ[data-group="'+group+'"]');
+    var s = 0;
+    for (var i=0;i<list.length;i++){
+      var v = list[i].value;
+      var vv = (v==null?"":(""+v)).replace(/[^0-9.+-]/g,"");
+      var n = parseFloat(vv);
+      if (!isNaN(n)) s += n;
+    }
+    return s;
+  }
+  function setText(id, val){
+    var el = document.getElementById(id);
+    if (!el) return;
+    try{
+      el.textContent = (Number(val)||0).toLocaleString('zh-TW');
+    }catch(e){
+      el.textContent = String(val);
+    }
+  }
+
+  function computeTotals_override(){
+    if (_origCompute) {
+      try { _origCompute(); } catch(e){}
+    }
+    var fixedOut = sumByGroup('fixedOut');
+    var fixedIn  = sumByGroup('fixedIn');
+    var saving   = sumByGroup('saving');
+    var extraIn  = sumByGroup('extraIn');
+    var extraOut = sumByGroup('extraOut');
+
+    setText('fixedOutTotal', fixedOut);
+    setText('fixedInTotal', fixedIn);
+    setText('savingTotal',  saving);
+    setText('extraInTotal', extraIn);
+    if (document.getElementById('extraOutTotal')) setText('extraOutTotal', extraOut);
+  }
+
+  window.computeTotals = computeTotals_override;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', computeTotals_override);
+  } else {
+    computeTotals_override();
+  }
+
+  function bind(){
+    document.addEventListener('input', function(e){
+      var t=e.target;
+      if(t && t.matches && t.matches('.moneyZ')) computeTotals_override();
+    }, true);
+    document.addEventListener('change', function(e){
+      var t=e.target;
+      if(t && t.matches && t.matches('.moneyZ')) computeTotals_override();
+    }, true);
+  }
+  bind();
+})();
+</script>
+
+<script>
+function num(v){
+  var s = (v == null ? "" : (""+v)).replace(/[^0-9.+-]/g, "");
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+(function(){
+  function recalc(){ try{ computeTotals && computeTotals(); }catch(e){} }
+  document.addEventListener('input', function(e){
+    var t=e.target; if(!t || !t.matches) return;
+    if(t.matches('.moneyZ, .pct, .used, #daysInput')) recalc();
+  }, true);
+  document.addEventListener('change', function(e){
+    var t=e.target; if(!t || !t.matches) return;
+    if(t.matches('.moneyZ, .pct, .used, #daysInput')) recalc();
+  }, true);
+})();
+</script>
+
+<script>
+(function(){
+  function moveReportCards(){
+    var hidden = document.getElementById('hidden');
+    if(!hidden) return;
+    ['rightTable','leftFixedTable','kpiBlock'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      var card = el.closest ? el.closest('.card') : null;
+      if(card && !hidden.contains(card)) hidden.appendChild(card);
+    });
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+    cards.forEach(function(card){
+      var title = card.querySelector('.section-title, h2, h3');
+      if(!title) return;
+      var txt = (title.textContent||'').trim();
+      if (txt.indexOf('其他項目') !== -1 || txt.indexOf('合計') !== -1 || txt.indexOf('主要項目') !== -1) {
+        if (!hidden.contains(card)) hidden.appendChild(card);
+      }
+    });
+  }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ moveReportCards(); setTimeout(moveReportCards, 50); setTimeout(moveReportCards, 300); });
+  } else {
+    moveReportCards(); setTimeout(moveReportCards, 50); setTimeout(moveReportCards, 300);
+  }
+  var th = document.getElementById('tab-home');
+  var tl = document.getElementById('tab-logs');
+  var tx = document.getElementById('tab-hidden');
+  if (th) th.addEventListener('click', moveReportCards);
+  if (tx) tx.addEventListener('click', moveReportCards);
+})();
+</script>
+
+</body>
+</html>
